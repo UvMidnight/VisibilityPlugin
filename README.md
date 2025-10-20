@@ -1,4 +1,9 @@
 # VisibilityPlugin
+
+Fork by uvmidnight. Hacky Regex support added to voidlist command.
+
+Players that you want to match regex can be added via `/void firstname lastname any reason`
+
 This plugin controls the visibility of players, pets and chocobos.
 
 ## About

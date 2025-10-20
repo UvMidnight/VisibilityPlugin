@@ -15,6 +15,7 @@ using FFXIVClientStructs.FFXIV.Component.GUI;
 using Visibility.Utils.EntityHandlers;
 
 using ObjectKind = Dalamud.Game.ClientState.Objects.Enums.ObjectKind;
+using BattleNpcSubKind = Dalamud.Game.ClientState.Objects.Enums.BattleNpcSubKind;
 
 namespace Visibility.Utils;
 

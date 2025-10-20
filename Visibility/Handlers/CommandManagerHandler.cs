@@ -191,77 +191,96 @@ public class CommandManagerHandler: IDisposable
 			return;
 		}
 
-		World? world = Service.DataManager.GetExcelSheet<World>().SingleOrDefault(x =>
-			x.DataCenter.ValueNullable?.Region != 0 &&
-			x.Name.ToString().Equals(args[2], StringComparison.InvariantCultureIgnoreCase));
+		
+		//disable valid world checks on command only
 
-		if (world is null)
+		try
 		{
-			Service.ChatGui.Print(
-				this.pluginLocalization.InvalidWorldNameError(this.pluginLocalization.VoidListName, args[2]));
-			return;
-		}
+			World? world = Service.DataManager.GetExcelSheet<World>().SingleOrDefault(x =>
+				x.DataCenter.ValueNullable?.Region != 0 &&
+				x.Name.ToString().Equals(args[2], StringComparison.InvariantCultureIgnoreCase));
+			
+			string playerName = $"{args[0].ToUppercase()} {args[1].ToUppercase()}";
 
-		string playerName = $"{args[0].ToUppercase()} {args[1].ToUppercase()}";
+			VoidItem voidItem;
+			IGameObject? playerCharacter = Service.ObjectTable.SingleOrDefault(
+					x => x is IPlayerCharacter character && character.HomeWorld.Value.RowId == world.Value.RowId &&
+					     character.Name.TextValue.Equals(playerName, StringComparison.InvariantCultureIgnoreCase)) as
+				IPlayerCharacter;
 
-		VoidItem voidItem;
-		IGameObject? playerCharacter = Service.ObjectTable.SingleOrDefault(
-				x => x is IPlayerCharacter character && character.HomeWorld.Value.RowId == world.Value.RowId &&
-				     character.Name.TextValue.Equals(playerName, StringComparison.InvariantCultureIgnoreCase)) as
-			IPlayerCharacter;
-
-		if (playerCharacter != null)
-		{
-			unsafe
+			if (playerCharacter != null)
 			{
-				Character* character = (Character*)playerCharacter.Address;
+				unsafe
+				{
+					Character* character = (Character*)playerCharacter.Address;
+					voidItem = new VoidItem
+					{
+						Id = character->ContentId,
+						Name = character->NameString,
+						HomeworldId = world.Value.RowId,
+						HomeworldName = world.Value.Name.ToString(),
+						Reason = args.Length == 3 ? string.Empty : args[3],
+						Manual = command == "VoidUIManual" // Or handle UI source differently
+					};
+				}
+			}
+			else
+			{
 				voidItem = new VoidItem
 				{
-					Id = character->ContentId,
-					Name = character->NameString,
+					Name = playerName,
 					HomeworldId = world.Value.RowId,
 					HomeworldName = world.Value.Name.ToString(),
 					Reason = args.Length == 3 ? string.Empty : args[3],
 					Manual = command == "VoidUIManual" // Or handle UI source differently
 				};
 			}
+
+			SeString playerString = new(
+				new PlayerPayload(playerName, world.Value.RowId),
+				new IconPayload(BitmapFontIcon.CrossWorld),
+				new TextPayload(world.Value.Name.ToString()));
+
+			if (!this.configuration.VoidList.Any(
+				    x =>
+					    x.Name == voidItem.Name && x.HomeworldId == voidItem.HomeworldId))
+			{
+				this.configuration.VoidList.Add(voidItem);
+				this.configuration.Save();
+
+				if (playerCharacter != null)
+				{
+					this.frameworkHandler.RemoveChecked(playerCharacter.EntityId);
+				}
+
+				Service.ChatGui.Print(
+					this.pluginLocalization.EntryAdded(this.pluginLocalization.VoidListName, playerString));
+			}
+			else
+			{
+				Service.ChatGui.Print(
+					this.pluginLocalization.EntryExistsError(this.pluginLocalization.VoidListName, playerString));
+			}
 		}
-		else
+		catch
 		{
-			voidItem = new VoidItem
+			string playerName = $"{args[0].ToUppercase()} {args[1].ToUppercase()}";
+			
+			VoidItem voidItem = new VoidItem
 			{
 				Name = playerName,
-				HomeworldId = world.Value.RowId,
-				HomeworldName = world.Value.Name.ToString(),
+				//update homeworld to have fake value if null
+				HomeworldId = 999999999,
+				HomeworldName = "none",
 				Reason = args.Length == 3 ? string.Empty : args[3],
 				Manual = command == "VoidUIManual" // Or handle UI source differently
 			};
-		}
-
-		SeString playerString = new(
-			new PlayerPayload(playerName, world.Value.RowId),
-			new IconPayload(BitmapFontIcon.CrossWorld),
-			new TextPayload(world.Value.Name.ToString()));
-
-		if (!this.configuration.VoidList.Any(
-			    x =>
-				    x.Name == voidItem.Name && x.HomeworldId == voidItem.HomeworldId))
-		{
+			
 			this.configuration.VoidList.Add(voidItem);
 			this.configuration.Save();
-
-			if (playerCharacter != null)
-			{
-				this.frameworkHandler.RemoveChecked(playerCharacter.EntityId);
-			}
-
+			
 			Service.ChatGui.Print(
-				this.pluginLocalization.EntryAdded(this.pluginLocalization.VoidListName, playerString));
-		}
-		else
-		{
-			Service.ChatGui.Print(
-				this.pluginLocalization.EntryExistsError(this.pluginLocalization.VoidListName, playerString));
+				this.pluginLocalization.EntryAdded(this.pluginLocalization.VoidListName, playerName));
 		}
 	}
 

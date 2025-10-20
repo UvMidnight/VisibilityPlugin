@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 
@@ -29,8 +30,13 @@ public class VoidListManager
 			    out VoidItem? voidedPlayer))
 		{
 			voidedPlayer = VisibilityPlugin.Instance.Configuration.VoidList.Find(x =>
-				characterPtr->GameObject.Name.StartsWith(x.NameBytes) &&
-				x.HomeworldId == characterPtr->HomeWorld);
+				Regex.IsMatch(characterPtr->GameObject.GetName(), x.Name, RegexOptions.IgnoreCase) &&
+				(x.HomeworldId == 999999999 || x.HomeworldId == characterPtr->HomeWorld)
+				
+				||
+				
+				(characterPtr->GameObject.Name.StartsWith(x.NameBytes) &&
+				x.HomeworldId == characterPtr->HomeWorld));
 		}
 
 		if (voidedPlayer != null)
